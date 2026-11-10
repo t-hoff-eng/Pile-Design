@@ -1,0 +1,11 @@
+{
+  "name": "pile-design",
+  "version": "1.0.0",
+  "description": "Axial pile design to AS 2159-2009: required pile length from shaft and end bearing capacity, with settlement",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "start": "python3 -m http.server 8000"
+  },
+  "license": "MIT"
+}
