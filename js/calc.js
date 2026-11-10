@@ -551,10 +551,31 @@
       warnings.push('Serviceability load exceeds 70% of the ultimate geotechnical strength - settlement predictions are sensitive to non-linear behaviour.');
     }
     if (phi.override) warnings.push('Geotechnical strength reduction factor φg has been manually overridden. Justify in accordance with AS 2159 Cl. 4.3.');
+    // Unit resistance profile with depth (for the pile / ground profile graphic)
+    const shaftStart = Math.max(ctx.head, ctx.ignoreTop);
+    const zs = new Set();
+    for (let z = 0; z <= profileBottom + EPS; z += 0.1) zs.add(Math.round(z * 1000) / 1000);
+    for (const l of profile) {
+      if (l.top > 0) zs.add(l.top - 1e-4);
+      zs.add(l.top + 1e-4);
+    }
+    const unitProfile = Array.from(zs)
+      .filter((z) => z >= 0 && z <= profileBottom)
+      .sort((a, b) => a - b)
+      .map((z) => {
+        const layer = layerAt(profile, z);
+        ctx.embedLength = Math.max(z, DZ);
+        const sh = unitShaft(layer, z, ctx);
+        return { z, fs: sh.fs, sv: sh.sv, qb: unitBase(layer, z, ctx).qb, onShaft: z >= shaftStart };
+      });
+
     return {
       phi,
       loads,
       geom,
+      unitProfile,
+      shaftStart,
+      head: ctx.head,
       method: ctx.method,
       settlementLimit: sLimit,
       settlementMethod: sMethod,

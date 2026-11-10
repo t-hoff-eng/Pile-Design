@@ -7,6 +7,15 @@ It finds the **minimum pile length** that satisfies both:
 - **Geotechnical strength (ULS):** R\*d,g = φg · Rd,ug ≥ E\*d, where Rd,ug = shaft + end-bearing resistance
 - **Serviceability (SLS):** pile head settlement under G + ψsQ ≤ the specified limit
 
+## Features
+
+- **Projects**: multiple projects saved in the browser. Switch with the dropdown in the top-right corner; the ⋯ menu creates, duplicates, deletes, exports and imports projects.
+- **Calculation sheets**: each project holds any number of sheets as sub-tabs under *Calculations* (new, duplicate, rename by double-clicking, delete). A new sheet copies the current ground profile and risk ratings.
+- **Pile and ground profile graphic**: the soil column with the pile, cut-off, ignored shaft zone and groundwater, beside plots of unit shaft resistance, unit base resistance and capacity against depth. Each layer has its own hatch pattern and colour.
+- **Project details** tab: project information and a summary of every sheet's result.
+- **Methods & information** tab: equations, learning notes with diagrams, input explanations with test methods, references and version history.
+- **Limitations** tab.
+
 ## Running
 
 No build step or dependencies. Open `index.html` in a browser, or serve the folder:
@@ -15,7 +24,7 @@ No build step or dependencies. Open `index.html` in a browser, or serve the fold
 python3 -m http.server 8000
 ```
 
-Inputs are saved in the browser automatically; use **Export/Import JSON** to keep design files, and **Print report** for a calculation printout.
+Inputs are saved in the browser automatically. Export projects to JSON from the ⋯ menu to back them up or share them; *Print current tab* produces a calculation printout. Single-sheet files and browser data from v1 are migrated automatically.
 
 ## Method
 
@@ -44,4 +53,12 @@ Structural strength (AS 2159 Section 5, AS 3600, AS 4100), negative skin frictio
 npm test
 ```
 
-Hand-check tests for the reduction factor, load combinations, clay/sand/rock capacity, effective stress, the Randolph & Wroth rigid-pile limit, the Fleming curve and the length search are in `test/calc.test.js`.
+Hand-check tests for the reduction factor, load combinations, clay/sand/rock capacity, effective stress, the Randolph & Wroth rigid-pile limit, the Fleming curve, the length search and the depth profile are in `test/calc.test.js`.
+
+## Files
+
+- `index.html`: page structure and written content
+- `js/calc.js`: calculation engine (browser and Node)
+- `js/content.js`: fill patterns, references, version history, learning diagrams
+- `js/app.js`: projects, sheets, inputs and results
+- `css/styles.css`: styles
