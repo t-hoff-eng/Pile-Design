@@ -119,3 +119,11 @@ test('Sand and rock layers produce positive resistance', () => {
   close(rockShaft.Rs, 0.45 * Math.sqrt(10) * 1000 * Math.PI * 0.6 * 2, 1, 'rock shaft');
   close(cap.qb, 4.83 * Math.pow(10, 0.51) * 1000, 1, 'rock base');
 });
+
+test('Unit resistance profile reports fs and qb with depth', () => {
+  const res = C.design(baseInput());
+  const at = res.unitProfile.find((p) => Math.abs(p.z - 5) < 1e-6);
+  close(at.fs, 45, 1e-6, 'fs = alpha su');
+  close(at.qb, 900, 1e-6, 'qb = 9 su');
+  assert.ok(res.unitProfile.every((p, i, a) => i === 0 || p.z > a[i - 1].z));
+});

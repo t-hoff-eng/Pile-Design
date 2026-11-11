@@ -8,188 +8,860 @@
 </head>
 <body>
 <header class="app-header">
-  <div>
+  <div class="brand">
     <h1>Pile Design</h1>
-    <p class="sub">Axial compression design of single piles to AS 2159-2009 · loads to AS/NZS 1170.0</p>
+    <p class="sub">Axial pile design to AS 2159-2009 · <span id="app-version"></span></p>
   </div>
-  <div class="header-actions no-print">
-    <button type="button" id="btn-example">Load example</button>
-    <button type="button" id="btn-export">Export JSON</button>
-    <label class="btn">Import JSON<input type="file" id="file-import" accept="application/json" hidden></label>
-    <button type="button" id="btn-print" class="primary">Print report</button>
+  <div class="project-switch no-print">
+    <label class="inline">Project
+      <select id="project-select" aria-label="Switch project"></select>
+    </label>
+    <div class="menu">
+      <button type="button" id="btn-project-menu" aria-haspopup="true" aria-expanded="false" title="Project actions">⋯</button>
+      <div class="menu-list" id="project-menu" hidden>
+        <button type="button" data-action="new-project">New project</button>
+        <button type="button" data-action="duplicate-project">Duplicate project</button>
+        <button type="button" data-action="delete-project">Delete project</button>
+        <hr>
+        <button type="button" data-action="export-project">Export project (JSON)</button>
+        <label class="menu-btn">Import project (JSON)<input type="file" id="file-import" accept="application/json" hidden></label>
+        <hr>
+        <button type="button" data-action="print">Print current tab</button>
+      </div>
+    </div>
   </div>
 </header>
 
-<main class="layout">
-  <form id="inputs" class="inputs" autocomplete="off" onsubmit="return false">
+<nav class="tabs main-tabs no-print" role="tablist" aria-label="Main">
+  <button type="button" role="tab" data-tab="info">Methods &amp; information</button>
+  <button type="button" role="tab" data-tab="limits">Limitations</button>
+  <button type="button" role="tab" data-tab="project">Project details</button>
+  <button type="button" role="tab" data-tab="calc">Calculations</button>
+  <button type="button" role="tab" data-tab="auto">Automated calculation</button>
+</nav>
 
-    <section class="card">
-      <h2>Project</h2>
-      <div class="grid g2">
-        <label>Project<input name="project.name"></label>
-        <label>Job no.<input name="project.job"></label>
-        <label>Pile ref.<input name="project.ref"></label>
-        <label>Designer<input name="project.designer"></label>
+<!-- ======================================================================
+     METHODS & INFORMATION
+     ====================================================================== -->
+<section class="tab-panel" id="tab-info" role="tabpanel" hidden>
+  <nav class="tabs sub-tabs no-print" role="tablist" aria-label="Methods and information">
+    <button type="button" role="tab" data-subtab="methods">Methods</button>
+    <button type="button" role="tab" data-subtab="learning">Learning</button>
+    <button type="button" role="tab" data-subtab="inputs">Inputs explained</button>
+    <button type="button" role="tab" data-subtab="refs">References</button>
+    <button type="button" role="tab" data-subtab="versions">Version history</button>
+  </nav>
+
+  <!-- ---------------- Methods ---------------- -->
+  <article class="prose sub-panel" id="sub-methods">
+    <h2>Methods</h2>
+    <p>The calculator finds the shortest single pile, loaded axially in compression, that satisfies the AS 2159-2009 strength and serviceability limit states. Each equation used is listed below with what it represents. Symbols are defined in <a href="#" data-goto="inputs">Inputs explained</a>.</p>
+
+    <h3 id="m-criterion">1. Design criteria</h3>
+    <div class="eq">R*<sub>d,g</sub> = φ<sub>g</sub> · R<sub>d,ug</sub> ≥ E*<sub>d</sub></div>
+    <p><b>Geotechnical strength limit state</b> (AS 2159 Cl. 4.3.1). The design geotechnical strength R*<sub>d,g</sub> is the ultimate geotechnical strength R<sub>d,ug</sub> reduced by the geotechnical strength reduction factor φ<sub>g</sub>. It must be at least the design action effect E*<sub>d</sub> (the factored ULS load on the pile).</p>
+    <div class="eq">w<sub>SLS</sub> ≤ w<sub>allow</sub></div>
+    <p><b>Serviceability limit state</b> (AS 2159 Cl. 4.4). The predicted pile head settlement under the serviceability load must not exceed the allowable settlement set by the structure's tolerance.</p>
+
+    <h3 id="m-loads">2. Load combinations (AS/NZS 1170.0)</h3>
+    <div class="eq">E*<sub>d</sub> = max(1.35G, 1.2G + 1.5Q)</div>
+    <p>Strength combinations for permanent (G) and imposed (Q) actions. Other combinations (wind, earthquake, etc.) are not generated. Enter the governing per-pile actions if they control.</p>
+    <div class="eq">P<sub>SLS</sub> = G + ψ<sub>s</sub>Q</div>
+    <p>Short-term serviceability combination. ψ<sub>s</sub> is the short-term factor (0.7 for most floor occupancies, AS/NZS 1170.0 Table 4.1). For long-term settlement, use ψ<sub>l</sub> (typically 0.4) in the ψ<sub>s</sub> box.</p>
+
+    <h3 id="m-phig">3. Geotechnical strength reduction factor (AS 2159 Cl. 4.3)</h3>
+    <div class="eq">ARR = Σ(w<sub>i</sub> · IRR<sub>i</sub>) / Σw<sub>i</sub></div>
+    <p><b>Average Risk Rating.</b> Each of nine risk factors (site, design and installation) gets an Individual Risk Rating IRR<sub>i</sub> from 1 (very low risk) to 5 (very high risk). Ratings are weighted by w<sub>i</sub> from Table 4.3.2(A).</p>
+    <table class="data compact">
+      <thead><tr><th>ARR</th><th>Overall risk</th><th class="num">φ<sub>gb</sub> low redundancy</th><th class="num">φ<sub>gb</sub> high redundancy</th></tr></thead>
+      <tbody id="phigb-table"></tbody>
+    </table>
+    <div class="eq">φ<sub>g</sub> = φ<sub>gb</sub> + (φ<sub>tf</sub> − φ<sub>gb</sub>) · K ≥ φ<sub>gb</sub></div>
+    <p><b>Effect of load testing.</b> φ<sub>gb</sub> is the basic factor from the ARR. Load testing raises it towards the intrinsic test factor φ<sub>tf</sub> (default 0.90 static, 0.80 dynamic) by the testing benefit factor K:</p>
+    <div class="eq">K = 1.33p / (p + 3.3) ≤ 1 (static) &nbsp;&nbsp; K = 1.13p / (p + 3.3) ≤ 1 (dynamic)</div>
+    <p>where p is the percentage of the piles that are tested. With no testing, K = 0 and φ<sub>g</sub> = φ<sub>gb</sub>.</p>
+
+    <h3 id="m-stress">4. Vertical effective stress</h3>
+    <div class="eq">σ′<sub>v</sub>(z) = Σ γ<sub>i</sub>h<sub>i</sub> − γ<sub>w</sub> · max(0, z − z<sub>w</sub>)</div>
+    <p>Total overburden from each layer's bulk unit weight, less hydrostatic pore pressure below the groundwater level z<sub>w</sub> (γ<sub>w</sub> = 9.81 kN/m³). This controls frictional (sand) shaft and base resistance and the API α ratio.</p>
+
+    <h3 id="m-ult">5. Ultimate geotechnical strength</h3>
+    <div class="eq">R<sub>d,ug</sub> = R<sub>s</sub> + R<sub>b</sub> = Σ f<sub>s</sub>(z) · P · Δz + q<sub>b</sub> · A<sub>b</sub></div>
+    <p>Shaft resistance is the unit shaft resistance f<sub>s</sub> integrated over the pile perimeter P along the embedded shaft. It is evaluated in 0.05 m slices, starting below the head or the "ignore shaft friction above" depth, whichever is deeper. Base resistance is the unit base resistance q<sub>b</sub> at the toe multiplied by the base area A<sub>b</sub>. Each unit value is capped at the layer's f<sub>s,max</sub> / q<sub>b,max</sub> where given.</p>
+
+    <h4>5.1 Clay (undrained, total stress)</h4>
+    <div class="eq">f<sub>s</sub> = α · s<sub>u</sub></div>
+    <p>Adhesion between the pile and clay as a fraction α of the undrained shear strength. Use a fixed α (typically 0.45–0.55 for bored piles) or the API RP2A relation:</p>
+    <div class="eq">α = 0.5ψ<sup>−0.5</sup> (ψ ≤ 1); &nbsp; α = 0.5ψ<sup>−0.25</sup> (ψ &gt; 1); &nbsp; α ≤ 1; &nbsp; ψ = s<sub>u</sub>/σ′<sub>v</sub></div>
+    <div class="eq">q<sub>b</sub> = N<sub>c</sub> · s<sub>u</sub> &nbsp; (N<sub>c</sub> = 9 for deep foundations)</div>
+    <p>Deep bearing failure in undrained clay (Skempton 1951).</p>
+
+    <h4>5.2 Sand (drained, effective stress)</h4>
+    <div class="eq">f<sub>s</sub> = K · σ′<sub>v</sub> · tan δ, &nbsp; K = (K/K<sub>0</sub>) · (1 − sin φ′), &nbsp; δ = (δ/φ′) · φ′</div>
+    <p><b>β-method.</b> Friction on the shaft is the horizontal effective stress (K·σ′<sub>v</sub>) multiplied by the interface friction coefficient tan δ. K/K<sub>0</sub> reflects installation disturbance and δ/φ′ the interface roughness (Kulhawy 1984). The defaults change with pile type.</p>
+    <div class="eq">q<sub>b</sub> = N<sub>q</sub> · d<sub>q</sub> · σ′<sub>v</sub></div>
+    <div class="eq">N<sub>q</sub> = e<sup>π tan φ′</sup> · tan²(45° + φ′/2), &nbsp; d<sub>q</sub> = 1 + 2 tan φ′ (1 − sin φ′)² · k</div>
+    <p>Bearing capacity factor N<sub>q</sub> (Reissner/Prandtl) and Hansen's (1970) depth factor d<sub>q</sub>, with k = L/D for L/D ≤ 1 and k = arctan(L/D) in radians otherwise. Base resistance in sand does not keep increasing with depth in reality, so set a limiting q<sub>b,max</sub>.</p>
+
+    <h4>5.3 Rock</h4>
+    <div class="eq">f<sub>s</sub> = a · √q<sub>u</sub> &nbsp; (f<sub>s</sub>, q<sub>u</sub> in MPa)</div>
+    <p>Socket shaft resistance from the uniaxial compressive strength of the intact rock (Rowe &amp; Armitage 1987). a ≈ 0.45 for smooth or regular sockets and ≈ 0.6 for clean, roughened sockets.</p>
+    <div class="eq">q<sub>b</sub> = 4.83 · q<sub>u</sub><sup>0.51</sup> &nbsp; (MPa)</div>
+    <p>Empirical ultimate end bearing of drilled shafts on rock (Zhang &amp; Einstein 1998). Base cleanliness strongly affects this value.</p>
+
+    <h4>5.4 User-defined</h4>
+    <p>Enter f<sub>s</sub> and q<sub>b</sub> directly, for example from load tests, CPT correlations or a geotechnical report.</p>
+
+    <h4>5.5 Founding layer checks</h4>
+    <p>If the toe's embedment in the founding layer is less than the specified minimum, base resistance uses the weaker of the founding layer and the overlying layer. A warning is given if a layer starts within 3D below the toe with a unit base resistance below 80% of the founding layer's.</p>
+
+    <h3 id="m-rw">6. Settlement – Randolph &amp; Wroth (1978)</h3>
+    <p>Linear-elastic closed-form solution for a compressible pile in a soil whose shear modulus may vary with depth. Shaft and base are treated separately and coupled through pile compressibility:</p>
+    <div class="eq">P<sub>t</sub> / (w<sub>t</sub> G<sub>L</sub> r<sub>0</sub>) = [ 4η/((1−ν)ξ) + (2πρ/ζ)(tanh μL / μL)(L/r<sub>0</sub>) ] / [ 1 + (1/(πλ)) (4η/((1−ν)ξ)) (tanh μL / μL)(L/r<sub>0</sub>) ]</div>
+    <div class="eq">ξ = G<sub>L</sub>/G<sub>b</sub>, &nbsp; ρ = G<sub>avg</sub>/G<sub>L</sub>, &nbsp; λ = E<sub>p</sub>/G<sub>L</sub>, &nbsp; η = r<sub>b</sub>/r<sub>0</sub> = 1</div>
+    <div class="eq">r<sub>m</sub> = {0.25 + ξ[2.5ρ(1 − ν) − 0.25]} · L, &nbsp; ζ = ln(r<sub>m</sub>/r<sub>0</sub>), &nbsp; μL = √(2/(ζλ)) · (L/r<sub>0</sub>)</div>
+    <p>G = E/(2(1+ν)) for each layer. G<sub>L</sub> is the shear modulus just above the toe, G<sub>b</sub> below the toe, G<sub>avg</sub> the average along the shaft and r<sub>m</sub> the radius beyond which shear strain is negligible. The result is the head stiffness P<sub>t</sub>/w<sub>t</sub>, including elastic shortening of the pile.</p>
+
+    <h3 id="m-fleming">7. Settlement – Fleming (1992) hyperbolic method</h3>
+    <p>Shaft and base load–displacement responses are each represented by a hyperbola and then combined, giving a non-linear curve up to the ultimate load:</p>
+    <div class="eq">w<sub>s</sub> = M<sub>s</sub> D<sub>s</sub> P<sub>s</sub> / (U<sub>s</sub> − P<sub>s</sub>) &nbsp;&nbsp; (shaft)</div>
+    <div class="eq">w<sub>b</sub> = 0.6 U<sub>b</sub> P<sub>b</sub> / (D<sub>b</sub> E<sub>b</sub> (U<sub>b</sub> − P<sub>b</sub>)) &nbsp;&nbsp; (base)</div>
+    <p>U<sub>s</sub> and U<sub>b</sub> are the ultimate (unfactored) shaft and base resistances, M<sub>s</sub> the shaft flexibility factor and E<sub>b</sub> the soil modulus below the base. For a rigid pile w<sub>s</sub> = w<sub>b</sub> and P = P<sub>s</sub> + P<sub>b</sub>, solved numerically. Elastic shortening is added:</p>
+    <div class="eq">w<sub>e</sub> = 4P(L<sub>0</sub> + K<sub>e</sub>L<sub>1</sub>)/(πD<sub>s</sub>²E<sub>c</sub>) &nbsp; for P ≤ U<sub>s</sub></div>
+    <div class="eq">w<sub>e</sub> = 4[P(L<sub>0</sub> + L<sub>1</sub>) − L<sub>1</sub>U<sub>s</sub>(1 − K<sub>e</sub>)]/(πD<sub>s</sub>²E<sub>c</sub>) &nbsp; for P &gt; U<sub>s</sub></div>
+    <p>L<sub>0</sub> is the length with no shaft friction (the ignored zone), L<sub>1</sub> the length transferring load by friction and K<sub>e</sub> the effective-length factor (≈ 0.45–0.5).</p>
+
+    <h3 id="m-search">8. Required length search</h3>
+    <p>The toe is moved down from (head + minimum length) to the maximum toe depth in 0.05 m steps. At each step R*<sub>d,g</sub> and the serviceability settlement (Randolph &amp; Wroth, Fleming, or the larger of the two) are calculated. The required length is the first toe depth that satisfies both criteria. The lengths needed for ULS alone and SLS alone are also reported, which shows which one governs.</p>
+
+    <h3 id="m-auto">9. Automated calculation from a 3D ground model</h3>
+    <p>Each pile is designed with exactly the single-pile method above. Its input is built automatically from the 3D model:</p>
+    <h4>9.1 Stratigraphic column at the pile</h4>
+    <p>A vertical line is passed through the pile collar (x, y). For each closed volume, the elevations where it crosses the mesh triangles are found with barycentric interpolation:</p>
+    <div class="eq">z = a·z<sub>1</sub> + b·z<sub>2</sub> + (1 − a − b)·z<sub>3</sub>, &nbsp; for 0 ≤ a, b, 1 − a − b</div>
+    <p>Crossings are sorted from top to bottom and paired (entry, exit) to give the depth ranges inside each volume. Ranges from all volumes are merged top-down into a continuous column. Overlaps go to the higher volume. Gaps are filled with the unit above, with a warning where a gap exceeds 0.05 m. The ground surface is the top of the uppermost volume and the column ends at the base of the model.</p>
+    <h4>9.2 Depth reference and pile head</h4>
+    <div class="eq">z<sub>ref</sub> = max(z<sub>collar</sub>, z<sub>ground</sub>), &nbsp; head depth = z<sub>ref</sub> − z<sub>collar</sub>, &nbsp; layer depth = z<sub>ref</sub> − RL</div>
+    <p>A collar below the ground surface (pile cap, basement) keeps the full overburden for effective stress. A collar above the model top adds an "Above model" layer with no weight or resistance. Shaft friction is ignored for the case's "ignore shaft" depth below the collar. Pile length is measured from the collar to the toe: L = z<sub>collar</sub> − z<sub>toe</sub>.</p>
+    <h4>9.3 Groundwater</h4>
+    <p>Constant RL, or a 3D surface. For a triangulated DXF surface, the RL is the highest vertical crossing at (x, y). For scattered points, inverse distance weighting of the 8 nearest points is used:</p>
+    <div class="eq">z<sub>w</sub>(x, y) = Σ (z<sub>i</sub>/d<sub>i</sub>²) / Σ (1/d<sub>i</sub>²)</div>
+    <p>Where the surface does not cover a pile, the fallback RL is used (or the pile is treated as dry). The groundwater depth below z<sub>ref</sub> is used in σ′<sub>v</sub>; groundwater above the ground surface is taken at the surface.</p>
+    <h4>9.4 Design cases and zones</h4>
+    <p>Each pile takes the design case of the last zone (in list order) whose polygon contains it, by an even-odd point-in-polygon test, otherwise the default case. A case sets the pile type and size, G, Q, ψ<sub>s</sub>, φ<sub>g</sub>, settlement limit and method, ignored shaft depth, and minimum and maximum length. G and Q from the collar file, where given, override the case loads for that pile.</p>
+  </article>
+
+  <!-- ---------------- Learning ---------------- -->
+  <article class="prose sub-panel" id="sub-learning" hidden>
+    <h2>Learning</h2>
+    <p>Background for each concept used in the calculator. The diagrams are schematic.</p>
+
+    <section class="learn">
+      <h3>How a pile carries load</h3>
+      <div class="learn-grid">
+        <div>
+          <p>An axially loaded pile transfers load to the ground in two ways:</p>
+          <ul>
+            <li><b>Shaft (skin) resistance</b>: friction or adhesion along the sides, R<sub>s</sub>.</li>
+            <li><b>End bearing (base resistance)</b>: bearing pressure under the toe, R<sub>b</sub>.</li>
+          </ul>
+          <p>The load carried by the pile shaft decreases with depth as friction sheds load into the ground. Whatever remains reaches the toe. Long piles in soil are often mostly "friction piles", while short piles socketed onto strong rock or dense gravel are "end-bearing piles".</p>
+          <p>The two components mobilise at very different displacements, which is why the settlement calculation treats them separately (see <i>Settlement</i> below).</p>
+        </div>
+        <figure id="fig-load-transfer"></figure>
       </div>
     </section>
 
-    <section class="card">
-      <h2>Pile</h2>
-      <div class="grid g2">
-        <label class="span2">Pile type
-          <select name="pile.type" id="pile-type"></select>
-        </label>
-        <label>Section
-          <select name="pile.shape">
-            <option value="circle">Circular</option>
-            <option value="square">Square</option>
-          </select>
-        </label>
-        <label>Diameter / width D (m)<input name="pile.D" type="number" step="0.05" min="0.1"></label>
-        <label>Pile modulus E<sub>p</sub> (MPa)<input name="pile.Ep" type="number" step="1000" min="1"></label>
-        <label data-show="steelTube">Tube wall t (m)<input name="pile.wall" type="number" step="0.001" min="0"></label>
-        <label>Cut-off (head) depth (m)<input name="pile.head" type="number" step="0.1" min="0"></label>
-        <label title="Shaft resistance ignored above this depth (e.g. fill, desiccated/reactive zone, casing)">Ignore shaft friction above (m)<input name="pile.ignoreTop" type="number" step="0.1" min="0"></label>
-        <label>Minimum length (m)<input name="pile.minLength" type="number" step="0.5" min="0"></label>
-        <label title="If the toe embedment into a layer is less than this, the weaker of that layer and the overlying layer is used for base resistance">Min. embedment in founding layer (m)<input name="pile.minEmbed" type="number" step="0.1" min="0"></label>
-        <label>Max. toe depth (m, blank = profile base)<input name="pile.maxToe" type="number" step="0.5" min="0"></label>
+    <section class="learn">
+      <h3>Limit state design and φ<sub>g</sub></h3>
+      <div class="learn-grid">
+        <div>
+          <p>AS 2159 uses <b>limit state design</b>. Loads are factored up (E*<sub>d</sub>) and strength is factored down (φ<sub>g</sub>·R<sub>d,ug</sub>). There is no single global factor of safety. The equivalent factor of safety is roughly (load factor)/φ<sub>g</sub>, for example 1.3/0.52 ≈ 2.5.</p>
+          <p>φ<sub>g</sub> reflects how confident you are in the ground model and the construction. Poor investigation, variable geology or little construction control give a high ARR and a low φ<sub>g</sub> (down to 0.40). Thorough investigation, proven local experience and load testing raise it (up to about 0.9 with extensive static testing).</p>
+          <p><b>Redundancy:</b> a single pile under a column (low redundancy) has nowhere to shed load if it underperforms. A large pile group or piled raft (high redundancy) can redistribute load, so a higher φ<sub>gb</sub> is allowed.</p>
+          <p>Investing in investigation and testing often <i>shortens</i> piles enough to pay for itself.</p>
+        </div>
+        <figure id="fig-phig"></figure>
       </div>
     </section>
 
-    <section class="card">
-      <h2>Loads per pile</h2>
+    <section class="learn">
+      <h3>Effective stress</h3>
+      <div class="learn-grid">
+        <div>
+          <p>Soil friction depends on the stress carried by the soil skeleton, the <b>effective stress</b> σ′ = σ − u, not on the total stress. Below the water table, pore water pressure u pushes the grains apart and reduces σ′.</p>
+          <p>Above the water table, σ′<sub>v</sub> increases at γ per metre. Below it, the rate drops to the submerged unit weight (γ − γ<sub>w</sub>), about half. A rise in groundwater therefore reduces shaft and base resistance in sand.</p>
+        </div>
+        <figure id="fig-stress"></figure>
+      </div>
+    </section>
+
+    <section class="learn">
+      <h3>Shaft resistance in clay – the α method</h3>
+      <div class="learn-grid">
+        <div>
+          <p>Clay under the relatively quick loading of a building is analysed <b>undrained</b>, using the undrained shear strength s<sub>u</sub>. The pile–soil interface usually mobilises only part of s<sub>u</sub>, giving f<sub>s</sub> = α·s<sub>u</sub>.</p>
+          <ul>
+            <li><b>Bored piles</b>: softening of the clay at the borehole wall during drilling and concreting gives α ≈ 0.45 (Skempton's London Clay value) to 0.55.</li>
+            <li><b>Driven piles</b>: α depends on how "overconsolidated" the clay is. API RP2A relates α to ψ = s<sub>u</sub>/σ′<sub>v</sub>: soft, normally consolidated clays (low ψ) give α close to 1, and stiff, heavily overconsolidated clays (high ψ) give α ≈ 0.5 or less.</li>
+          </ul>
+          <p>Many practitioners also cap f<sub>s</sub> in clay (for example at 100–150 kPa) unless load tests justify more.</p>
+        </div>
+        <figure id="fig-alpha"></figure>
+      </div>
+    </section>
+
+    <section class="learn">
+      <h3>Shaft resistance in sand – the β method</h3>
+      <div class="learn-grid">
+        <div>
+          <p>In sand, shaft resistance is frictional: f<sub>s</sub> = σ′<sub>h</sub>·tan δ = K·σ′<sub>v</sub>·tan δ.</p>
+          <ul>
+            <li><b>K</b>, the ratio of horizontal to vertical effective stress at the shaft. Before construction it is K<sub>0</sub> ≈ 1 − sin φ′. Driving displaces and densifies sand (K/K<sub>0</sub> ≈ 1–2), while boring relaxes it (K/K<sub>0</sub> ≈ 0.7–1).</li>
+            <li><b>δ</b>, the interface friction angle. Rough cast-in-place concrete develops the full soil friction (δ ≈ φ′), while smooth steel develops about 0.7φ′.</li>
+          </ul>
+          <p>Because f<sub>s</sub> is proportional to σ′<sub>v</sub>, it increases linearly with depth. Field data show it levels off, so a limiting value (f<sub>s,max</sub>) is normally applied.</p>
+        </div>
+        <figure id="fig-beta"></figure>
+      </div>
+    </section>
+
+    <section class="learn">
+      <h3>End bearing</h3>
+      <div class="learn-grid">
+        <div>
+          <p>At failure, a failure surface forms in the soil beneath and around the toe. Its extent depends on the soil strength.</p>
+          <ul>
+            <li><b>Clay:</b> q<sub>b</sub> = 9s<sub>u</sub>. The factor 9 is the deep-foundation value of N<sub>c</sub>.</li>
+            <li><b>Sand:</b> q<sub>b</sub> = N<sub>q</sub>·σ′<sub>v</sub>. N<sub>q</sub> rises very steeply with φ′ (see the chart), so small errors in φ′ give large errors in q<sub>b</sub>. Bored piles in sand also need large movements (about 10% of D) to mobilise full end bearing, so conservative q<sub>b,max</sub> values are used.</li>
+            <li><b>Rock:</b> q<sub>b</sub> relates to the rock's UCS. A clean base is essential, because debris left in the hole acts as a soft cushion.</li>
+          </ul>
+          <p><b>Weaker layer below the toe:</b> the failure zone extends a few diameters below the toe. If a soft layer lies within it, the pile can "punch" through, which is why the calculator checks 3D below the toe.</p>
+        </div>
+        <figure id="fig-nq"></figure>
+      </div>
+    </section>
+
+    <section class="learn">
+      <h3>Rock sockets</h3>
+      <div class="learn-grid">
+        <div>
+          <p>Bored piles are often socketed into weathered or fresh rock. Shaft resistance in rock is controlled by the strength of the intact rock and the <b>roughness</b> of the socket wall. Asperities on the wall must shear or ride over each other for the pile to slip.</p>
+          <p>The Rowe &amp; Armitage correlation f<sub>s</sub> = 0.45√q<sub>u</sub> (MPa) is a widely used lower-bound average for regular sockets. Smeared, smooth sockets (e.g. drilled with bentonite or in clay-rich shale) can be much weaker. In Sydney sandstone and shale, Pells et al. (1998) give allowable and ultimate values by rock class.</p>
+          <p>For defects, weathering seams and degradation on exposure, use the rock mass rather than intact UCS, or cap f<sub>s</sub> and q<sub>b</sub>.</p>
+        </div>
+        <figure id="fig-socket"></figure>
+      </div>
+    </section>
+
+    <section class="learn">
+      <h3>Settlement and load mobilisation</h3>
+      <div class="learn-grid">
+        <div>
+          <p>Shaft friction is fully mobilised at small movements, typically 0.5–1% of the diameter (5–10 mm). End bearing needs much larger movements, about 5–10% of the diameter for bored piles. At working load, most of the load is therefore carried by the shaft and the pile is stiff. As load increases towards ultimate, the base takes over and settlement accelerates.</p>
+          <p><b>Fleming's method</b> captures this with separate hyperbolic shaft and base curves (chart, right). M<sub>s</sub> controls how quickly the shaft mobilises.</p>
+          <p><b>Randolph &amp; Wroth</b> model the soil as concentric cylinders shearing around the shaft plus a rigid punch at the base. The result is linear, so it is accurate at working loads but over-predicts stiffness as the pile approaches failure.</p>
+          <p>Soil modulus E is the most uncertain input. It is strain-level dependent, and values for pile settlement are usually between the very small strain (seismic) modulus and the large-strain triaxial modulus.</p>
+        </div>
+        <figure id="fig-mobilisation"></figure>
+      </div>
+    </section>
+
+    <section class="learn">
+      <h3>The Randolph &amp; Wroth model</h3>
+      <div class="learn-grid">
+        <div>
+          <p>Around the shaft, shear stress decreases inversely with radius, τ(r) = τ<sub>0</sub>r<sub>0</sub>/r. This produces settlement that decays logarithmically with distance until it is negligible at the "magical radius" r<sub>m</sub> (≈ 2.5L(1 − ν)ρ in uniform soil). ζ = ln(r<sub>m</sub>/r<sub>0</sub>) is the resulting shaft flexibility term.</p>
+          <p>The base acts as a rigid circular punch on an elastic half-space (Boussinesq), w<sub>b</sub> = P<sub>b</sub>(1 − ν)/(4r<sub>b</sub>G<sub>b</sub>).</p>
+          <p>Pile compressibility (λ = E<sub>p</sub>/G<sub>L</sub>) enters through μL. Long, slender, compressible piles (μL &gt; 2) cannot transfer load to the base efficiently, so lengthening them gives diminishing returns.</p>
+        </div>
+        <figure id="fig-rw"></figure>
+      </div>
+    </section>
+
+    <section class="learn">
+      <h3>Automated design from a 3D ground model</h3>
+      <div class="learn-grid">
+        <div>
+          <p>A geological model built in software such as Leapfrog Geo represents each unit as a closed, triangulated volume. Ground conditions vary across a site, so one pile schedule designed from a single "representative" borehole can be very conservative in some places and unconservative in others.</p>
+          <p>The automated calculation drops a vertical line through every pile collar and reads off the units it passes through, giving a borehole-like column at each pile (diagram, right). Groundwater is read the same way from its surface, and the loads and design criteria come from the zone each pile sits in. Each pile is then designed individually.</p>
+          <p>The result is only as good as the model. Volumes are interpolations between investigation points, so confidence falls away from boreholes and CPTs. This should be reflected in φ<sub>g</sub>: rate the "extent of ground investigation" risk factor for the pile locations, not the boreholes.</p>
+          <p>Use <i>Open as calculation sheet</i> on representative or critical piles to review the full calculation and profile graphic.</p>
+        </div>
+        <figure id="fig-ray"></figure>
+      </div>
+    </section>
+
+    <section class="learn">
+      <h3>Pile type and installation effects</h3>
+      <div class="learn-grid">
+        <div>
+          <table class="data compact">
+            <thead><tr><th>Pile type</th><th class="num">K/K<sub>0</sub></th><th class="num">δ/φ′</th><th>Clay α</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Bored cast-in-place</td><td class="num">0.9</td><td class="num">1.0</td><td>0.45 fixed</td><td>Stress relief and softening; base cleanliness critical</td></tr>
+              <tr><td>CFA</td><td class="num">0.9</td><td class="num">1.0</td><td>0.5 fixed</td><td>Less relaxation than open bores if auger extraction is controlled</td></tr>
+              <tr><td>Driven precast concrete</td><td class="num">1.5</td><td class="num">0.8</td><td>API</td><td>Displacement densifies sand; set/driving records verify capacity</td></tr>
+              <tr><td>Driven steel tube (closed)</td><td class="num">1.5</td><td class="num">0.7</td><td>API</td><td>Smooth interface; check corrosion allowance</td></tr>
+            </tbody>
+          </table>
+          <p class="hint">Kulhawy (1984) ranges: K/K<sub>0</sub> jetted 0.5–0.67, drilled 0.67–1.0, small-displacement driven 0.75–1.25, large-displacement driven 1.0–2.0. δ/φ′: rough concrete 1.0, smooth concrete 0.8–1.0, rough steel 0.7–0.9, smooth steel 0.5–0.7.</p>
+        </div>
+      </div>
+    </section>
+  </article>
+
+  <!-- ---------------- Inputs explained ---------------- -->
+  <article class="prose sub-panel" id="sub-inputs" hidden>
+    <h2>Inputs explained</h2>
+    <p>Each input with its symbol, units, typical range and where to obtain it. Australian Standard test methods are listed where applicable; confirm the current edition.</p>
+
+    <h3>Pile</h3>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Input</th><th>Symbol</th><th>Unit</th><th>Typical</th><th>What it is / where to get it</th></tr></thead>
+      <tbody>
+        <tr><td>Pile type</td><td>–</td><td>–</td><td>–</td><td>Installation method. Sets default K/K<sub>0</sub>, δ/φ′ and α. Choose from rig availability, ground conditions (groundwater, obstructions), noise and vibration limits and contractor advice.</td></tr>
+        <tr><td>Diameter / width</td><td>D</td><td>m</td><td>0.3–1.8</td><td>Pile diameter (circular) or side width (square). Use the nominal tool or auger diameter for bored piles.</td></tr>
+        <tr><td>Pile modulus</td><td>E<sub>p</sub></td><td>MPa</td><td>Concrete 25,000–35,000; steel 200,000</td><td>Young's modulus of the pile material. Concrete from AS 3600 (E<sub>c</sub> from f′<sub>c</sub>). For steel tubes, the equivalent solid-section modulus E<sub>s</sub>A<sub>s</sub>/A is calculated from the wall thickness.</td></tr>
+        <tr><td>Tube wall</td><td>t</td><td>m</td><td>0.008–0.020</td><td>Steel tube wall thickness after corrosion allowance (AS 2159 Section 6).</td></tr>
+        <tr><td>Cut-off (head) depth</td><td>–</td><td>m</td><td>0–2</td><td>Depth of the pile head below the ground surface used for the soil profile, e.g. the underside of the pile cap.</td></tr>
+        <tr><td>Ignore shaft friction above</td><td>–</td><td>m</td><td>1–3</td><td>Depth above which shaft resistance is ignored: uncontrolled fill, soil affected by reactive (shrink–swell) movement (AS 2870 H<sub>s</sub> zone), scour, future excavation or temporary casing.</td></tr>
+        <tr><td>Minimum length</td><td>–</td><td>m</td><td>3–6</td><td>Practical or specified minimum (e.g. below reactive zone, below the influence of adjacent footings).</td></tr>
+        <tr><td>Min. embedment in founding layer</td><td>–</td><td>m</td><td>0.5–1.0 or 1D</td><td>Minimum penetration into the bearing stratum for its base resistance to be counted.</td></tr>
+        <tr><td>Max. toe depth</td><td>–</td><td>m</td><td>–</td><td>Limit of the search, normally the base of the investigation. Do not design piles founded below the investigated depth.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Loads and serviceability</h3>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Input</th><th>Symbol</th><th>Unit</th><th>Typical</th><th>What it is / where to get it</th></tr></thead>
+      <tbody>
+        <tr><td>Permanent action</td><td>G</td><td>kN</td><td>–</td><td>Unfactored dead load per pile (self-weight, superimposed dead). From the structural engineer's load take-down.</td></tr>
+        <tr><td>Imposed action</td><td>Q</td><td>kN</td><td>–</td><td>Unfactored live load per pile, AS/NZS 1170.1.</td></tr>
+        <tr><td>Short-term factor</td><td>ψ<sub>s</sub></td><td>–</td><td>0.7 (0.4 long-term ψ<sub>l</sub>)</td><td>AS/NZS 1170.0 Table 4.1 for the occupancy.</td></tr>
+        <tr><td>Settlement limit</td><td>w<sub>allow</sub></td><td>mm</td><td>10–25</td><td>Set by the structure's tolerance of total and differential settlement (often 1% D or 10–15 mm for buildings). Agree with the structural engineer.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Geotechnical strength reduction factor</h3>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Input</th><th>Symbol</th><th>Unit</th><th>Typical</th><th>What it is / where to get it</th></tr></thead>
+      <tbody>
+        <tr><td>Individual risk ratings</td><td>IRR<sub>i</sub></td><td>1–5</td><td>2–4</td><td>Engineering judgement against the descriptions in AS 2159 Table 4.3.2(A) / (B), informed by the geotechnical investigation report, the site's geological maps and the contractor's QA plan.</td></tr>
+        <tr><td>Redundancy</td><td>–</td><td>–</td><td>–</td><td>Low: isolated piles, small groups (&lt; 4 piles) under a column. High: large groups, piled rafts, many piles under a stiff structure.</td></tr>
+        <tr><td>Piles tested</td><td>p</td><td>%</td><td>1–5</td><td>Percentage of piles to be static or dynamic (PDA/CAPWAP) load tested to AS 2159 Section 8.</td></tr>
+        <tr><td>Intrinsic test factor</td><td>φ<sub>tf</sub></td><td>–</td><td>0.80–0.90</td><td>AS 2159 Cl. 4.3.1. Confirm against your copy of the standard for the test type.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Ground profile</h3>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Input</th><th>Symbol</th><th>Unit</th><th>Typical</th><th>What it is / recommended investigation or test</th></tr></thead>
+      <tbody>
+        <tr><td>Groundwater depth</td><td>z<sub>w</sub></td><td>m</td><td>–</td><td>Design groundwater level, including seasonal or flood rise. Standpipe piezometers / monitoring wells, observations in boreholes (allow time to stabilise), CPTu dissipation tests.</td></tr>
+        <tr><td>Layer bottom</td><td>–</td><td>m</td><td>–</td><td>Depth of the base of each unit from borehole and CPT logs described to AS 1726. Use an adequate number of boreholes (AS 1726) extending at least 3–5 D below the expected toe.</td></tr>
+        <tr><td>Bulk unit weight</td><td>γ</td><td>kN/m³</td><td>Clay 17–20, sand 18–21, rock 21–26</td><td>Laboratory bulk density of undisturbed tube samples, or typical values for the soil type and consistency/density.</td></tr>
+        <tr><td>Undrained shear strength</td><td>s<sub>u</sub></td><td>kPa</td><td>Soft 12–25, firm 25–50, stiff 50–100, very stiff 100–200, hard &gt; 200</td><td>UU triaxial tests on U50/U75 tube samples (AS 1289.6.4.1); CPTu, s<sub>u</sub> = (q<sub>t</sub> − σ<sub>v</sub>)/N<sub>kt</sub>, N<sub>kt</sub> ≈ 10–20; vane shear (soft clays); SPT, s<sub>u</sub> ≈ 4–6 × N (Stroud 1974); pocket penetrometer (indicative only).</td></tr>
+        <tr><td>Effective friction angle</td><td>φ′</td><td>°</td><td>Loose 28–30, medium dense 30–34, dense 34–38, very dense 38–42</td><td>Correlated from SPT N<sub>60</sub> (AS 1289.6.3.1) or CPT q<sub>c</sub> (AS 1289.6.5.1) via relative density (e.g. Kulhawy &amp; Mayne 1990); drained triaxial or direct shear on reconstituted samples. Reduce by about 3° for bored piles if loosening is expected.</td></tr>
+        <tr><td>Rock UCS</td><td>q<sub>u</sub></td><td>MPa</td><td>Very low &lt; 2, low 2–6, medium 6–20, high 20–60</td><td>Uniaxial compressive strength tests on core (AS 4133.4.2.1); point load index I<sub>s(50)</sub> on core (AS 4133.4.1) with q<sub>u</sub> ≈ 15–25 × I<sub>s(50)</sub> calibrated for the rock. Requires cored boreholes (HQ/NMLC) with RQD and defect logging.</td></tr>
+        <tr><td>Young's modulus</td><td>E</td><td>MPa</td><td>Clay 150–500 s<sub>u</sub>; sand 10–100; rock 50–5000</td><td>Drained modulus for settlement: pressuremeter, triaxial tests with local strain, seismic CPT / downhole (small strain G<sub>0</sub>, reduce for working strains), back-analysis of load tests, correlations with CPT (E ≈ 2.5–4 q<sub>c</sub> for sand) or SPT. Rock mass modulus from Pells et al. (1998) classes or E<sub>m</sub> correlations.</td></tr>
+        <tr><td>Poisson's ratio</td><td>ν</td><td>–</td><td>0.2–0.35 drained</td><td>Typical values for the material type; the result is not very sensitive to it.</td></tr>
+        <tr><td>User f<sub>s</sub>, q<sub>b</sub></td><td>f<sub>s</sub>, q<sub>b</sub></td><td>kPa</td><td>–</td><td>Ultimate unit values from local static load tests, instrumented piles, CPT direct methods (e.g. LCPC/Bustamante &amp; Gianeselli) or the geotechnical report.</td></tr>
+        <tr><td>Limiting values</td><td>f<sub>s,max</sub>, q<sub>b,max</sub></td><td>kPa</td><td>–</td><td>Caps to reflect local experience, rock class tables (Pells et al. 1998), field load test data or the geotechnical report.</td></tr>
+        <tr><td>Fill pattern / colour</td><td>–</td><td>–</td><td>–</td><td>Display only. Hatch and colour of the layer in the pile and ground profile graphic.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Automated calculation</h3>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Input</th><th>Format</th><th>Unit</th><th>What it is / where to get it</th></tr></thead>
+      <tbody>
+        <tr><td>Ground model volumes</td><td>ASCII DXF: 3DFACE or polyface mesh, one DXF layer per unit</td><td>m (E, N, RL)</td><td>Closed output volumes from the geological model (e.g. Leapfrog Geo: export the geological model output volumes as DXF meshes). Use the same projected coordinate system and height datum as the collars (e.g. MGA / GDA2020 and AHD). Volumes must be watertight; open meshes give an "odd crossings" warning.</td></tr>
+        <tr><td>Volume materials</td><td>Table</td><td>as Ground profile</td><td>Design parameters for each unit: the same inputs as the single-pile ground profile, from the geotechnical interpretive report. Names matching a layer in the current calculation sheet copy its parameters.</td></tr>
+        <tr><td>Pile collars</td><td>CSV (ID, X, Y, Z, optional G, Q) or point shapefile (zip or .shp + .dbf)</td><td>m, kN</td><td>Pile set-out coordinates and cut-off (or platform) RL from the structural pile layout or survey set-out (exported from CAD / 12d / Civil 3D). Column names are detected automatically and can be re-mapped. PointZ shapefiles supply Z directly.</td></tr>
+        <tr><td>Groundwater surface</td><td>DXF triangulated surface, or CSV of x, y, z points</td><td>m RL</td><td>Design groundwater level surface, interpolated from piezometer / monitoring well data (e.g. a Leapfrog water table surface), including allowance for seasonal and long-term rise.</td></tr>
+        <tr><td>Design cases</td><td>Table</td><td>as single pile</td><td>Pile type, diameter, loads per pile, ψ<sub>s</sub>, φ<sub>g</sub> (enter directly or copy it from a calculation sheet's risk assessment), settlement limit and method, shaft friction ignored below the collar, and minimum / maximum length.</td></tr>
+        <tr><td>Zones</td><td>Drawn on the plan, or polygon shapefile</td><td>m</td><td>Areas that share loads and criteria, e.g. building cores, heavy plant, settlement-sensitive structures, areas of different investigation quality (different φ<sub>g</sub>). A polygon attribute equal to a case name assigns that case on import.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Method parameters</h3>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>Input</th><th>Symbol</th><th>Unit</th><th>Typical</th><th>What it is</th></tr></thead>
+      <tbody>
+        <tr><td>Earth pressure ratio</td><td>K/K<sub>0</sub></td><td>–</td><td>0.67–2.0</td><td>Installation effect on horizontal stress (Kulhawy 1984).</td></tr>
+        <tr><td>Interface friction ratio</td><td>δ/φ′</td><td>–</td><td>0.5–1.0</td><td>Interface roughness (Kulhawy 1984).</td></tr>
+        <tr><td>Adhesion factor</td><td>α</td><td>–</td><td>0.3–1.0</td><td>Fraction of s<sub>u</sub> mobilised on the shaft.</td></tr>
+        <tr><td>Bearing factor</td><td>N<sub>c</sub></td><td>–</td><td>9</td><td>Deep undrained bearing capacity factor; reduce to about 6–7 for fissured clays or poorly cleaned bases.</td></tr>
+        <tr><td>Rock shaft coefficient</td><td>a</td><td>–</td><td>0.2–0.6</td><td>Rowe &amp; Armitage coefficient; 0.45 regular sockets, 0.6 roughened.</td></tr>
+        <tr><td>Shaft flexibility factor</td><td>M<sub>s</sub></td><td>–</td><td>0.0005–0.004</td><td>Fleming: lower for stiff soils/rock, higher for soft clays.</td></tr>
+        <tr><td>Effective length factor</td><td>K<sub>e</sub></td><td>–</td><td>0.45–0.5</td><td>Fleming: fraction of the friction length that acts as a free column.</td></tr>
+      </tbody>
+    </table></div>
+  </article>
+
+  <!-- ---------------- References ---------------- -->
+  <article class="prose sub-panel" id="sub-refs" hidden>
+    <h2>References</h2>
+    <p>Standards are available from Standards Australia and its distributors. "Find" links open a Google Scholar search for the paper.</p>
+    <h3>Standards</h3>
+    <ol class="refs">
+      <li>Standards Australia (2009). <i>AS 2159-2009 Piling – Design and installation</i>. Standards Australia, Sydney. <a href="https://www.standards.org.au/" target="_blank" rel="noopener">standards.org.au</a></li>
+      <li>Standards Australia / Standards New Zealand (2002). <i>AS/NZS 1170.0:2002 Structural design actions – Part 0: General principles</i>. <a href="https://www.standards.org.au/" target="_blank" rel="noopener">standards.org.au</a></li>
+      <li>Standards Australia (2017). <i>AS 1726:2017 Geotechnical site investigations</i>.</li>
+      <li>Standards Australia. <i>AS 1289 Methods of testing soils for engineering purposes</i> (various parts).</li>
+      <li>Standards Australia. <i>AS 4133 Methods of testing rocks for engineering purposes</i> (various parts).</li>
+      <li>Standards Australia (2018). <i>AS 3600:2018 Concrete structures</i>.</li>
+      <li>American Petroleum Institute (2000). <i>API RP 2A-WSD Recommended Practice for Planning, Designing and Constructing Fixed Offshore Platforms – Working Stress Design</i>, 21st ed. <a href="https://www.api.org/" target="_blank" rel="noopener">api.org</a></li>
+    </ol>
+    <h3>Methods used in the calculations</h3>
+    <ol class="refs" id="ref-list"></ol>
+    <h3>Further reading</h3>
+    <ol class="refs" id="ref-further"></ol>
+  </article>
+
+  <!-- ---------------- Version history ---------------- -->
+  <article class="prose sub-panel" id="sub-versions" hidden>
+    <h2>Version history</h2>
+    <div id="version-list"></div>
+  </article>
+</section>
+
+<!-- ======================================================================
+     LIMITATIONS
+     ====================================================================== -->
+<section class="tab-panel" id="tab-limits" role="tabpanel" hidden>
+  <article class="prose">
+    <h2>Limitations</h2>
+    <p>This tool is a design aid for preliminary and detailed design of single, axially loaded piles. Results must be reviewed and verified by a qualified, experienced geotechnical engineer. The limitations below apply.</p>
+
+    <h3>Scope of the design</h3>
+    <ul>
+      <li><b>Compression only.</b> Uplift (tension), lateral load, moment and combined loading are not checked.</li>
+      <li><b>Geotechnical design only.</b> The structural strength of the pile (AS 2159 Section 5, AS 3600, AS 4100), including buckling of slender piles in soft ground and stresses during driving or handling, is not checked.</li>
+      <li><b>Single piles only.</b> Group efficiency, block failure, group settlement and pile–soil–pile interaction are not considered. Group settlement can be several times the single-pile value.</li>
+      <li><b>Negative skin friction (downdrag)</b> from consolidating soft clay, fill placement or groundwater lowering is not included. It can add load and settlement and reduce available shaft resistance.</li>
+      <li><b>Pile self-weight</b> and buoyancy are ignored.</li>
+      <li><b>Durability</b> (AS 2159 Section 6: exposure classification, corrosion allowance, cover) is not assessed.</li>
+      <li>Only the AS/NZS 1170.0 G + Q combinations are generated. Wind, earthquake, snow, liquid pressure, thermal and construction loads must be combined manually and entered as equivalent per-pile actions.</li>
+      <li>Cyclic, dynamic and seismic effects, including liquefaction and loss of shaft resistance in liquefiable layers, are not considered.</li>
+      <li>Reactive soil (AS 2870) uplift on pile shafts is only addressed by allowing shaft friction to be ignored above a depth.</li>
+    </ul>
+
+    <h3>Strength methods</h3>
+    <ul>
+      <li>AS 2159 does not prescribe calculation methods. The static methods used here (α, β, N<sub>c</sub>, N<sub>q</sub>, Rowe &amp; Armitage, Zhang &amp; Einstein) are established empirical or semi-empirical correlations with considerable scatter. Local experience, rock-class tables (e.g. Pells et al. 1998) and load tests should take precedence.</li>
+      <li>The β-method shaft friction and N<sub>q</sub>·σ′<sub>v</sub> base resistance increase without limit with depth unless limiting values f<sub>s,max</sub> and q<sub>b,max</sub> are set. Always set limits appropriate to the pile type and ground.</li>
+      <li>N<sub>q</sub> uses the Reissner/Prandtl factor with the Hansen depth factor. Other published N<sub>q</sub> values (e.g. Berezantzev) may be higher or lower; results are very sensitive to φ′.</li>
+      <li>Each layer is homogeneous: properties do not vary with depth within a layer. Split thick layers to model strength increasing with depth.</li>
+      <li>Clays are analysed undrained (total stress) only. Long-term drained capacity in clay is not checked.</li>
+      <li>Silts, gravels, cemented soils, carbonate sands, collapsible soils, organic soils and peat must be represented by the clay/sand/rock/user types. Engineering judgement is required, particularly for carbonate (calcareous) sands where shaft friction can be very low.</li>
+      <li>Rock correlations are based on intact UCS. Rock mass defects, weathering seams, smear, degradation on exposure and base cleanliness can greatly reduce capacity.</li>
+      <li>Rock socket correlations are intended for bored piles. They do not apply to driven piles on rock, where toe damage and driveability govern.</li>
+      <li>The founding-layer checks (minimum embedment, weaker layer within 3D) are simple screening checks, not a punching shear analysis.</li>
+      <li>Installation effects (bored pile base disturbance, softening, bentonite or polymer filter cakes, CFA over-flighting, driving set-up or relaxation) are represented only through the method parameters.</li>
+    </ul>
+
+    <h3>Reduction factor φ<sub>g</sub></h3>
+    <ul>
+      <li>The risk ratings are the user's judgement and must be justified. The tabulated φ<sub>gb</sub> values, φ<sub>tf</sub> defaults and K expressions should be checked against the current edition and amendments of AS 2159.</li>
+      <li>The testing benefit assumes the tests are representative, conducted and interpreted to AS 2159 Section 8, and achieve the required capacity. Where testing is the basis of the design capacity (rather than verification), apply AS 2159 Cl. 4.3.3 / Section 8 directly.</li>
+    </ul>
+
+    <h3>Settlement methods</h3>
+    <ul>
+      <li>Both methods give the settlement of a single isolated pile at the head, assuming short-term (immediate) response with drained moduli as entered. Consolidation and creep settlement are not computed.</li>
+      <li>Randolph &amp; Wroth is linear elastic. It under-predicts settlement as loads approach the ultimate capacity.</li>
+      <li>Fleming's method depends on M<sub>s</sub> and the base modulus. The rigid-pile solution plus elastic shortening is an approximation for long, compressible piles.</li>
+      <li>Soil modulus is strain-level dependent and the dominant source of uncertainty. Use values calibrated to load tests where possible.</li>
+      <li>Layered soil is simplified to average, toe and below-toe moduli (Randolph &amp; Wroth) or the below-toe modulus (Fleming base).</li>
+      <li>Differential settlement between piles and group effects must be assessed separately.</li>
+    </ul>
+
+    <h3>Automated calculation</h3>
+    <ul>
+      <li>All single-pile limitations above apply to every pile.</li>
+      <li>The ground model is an interpolation. Results away from investigation locations carry model uncertainty that is not quantified by the calculation. Review the model against the boreholes and CPTs, and reflect its reliability in φ<sub>g</sub>.</li>
+      <li>Each volume is homogeneous. Strength and stiffness do not vary within a unit or across the site; split units in the model (or use zones with different cases) where parameters vary.</li>
+      <li>Only ASCII DXF 3DFACE and polyface (POLYLINE) meshes are read. MESH, ACIS solids, binary DXF and block references (INSERT) are not supported. Coordinates are used as stored; no coordinate system or datum transformation is applied.</li>
+      <li>Volumes must be closed. Open meshes, self-intersections and overlapping volumes are handled approximately (overlaps go to the higher unit, gaps are filled with the unit above) and flagged where detected.</li>
+      <li>Piles are assumed vertical. Raked piles are not supported.</li>
+      <li>IDW interpolation of groundwater points does not honour hydrogeological boundaries and extrapolates as a weighted average outside the data.</li>
+      <li>Piles are designed individually. Group effects, interaction between adjacent piles, negative skin friction and differential settlement between piles are not assessed.</li>
+      <li>Model geometry is stored in this browser (IndexedDB). It is included in project JSON exports, but clearing browser data removes it.</li>
+      <li>Plan view footprints are drawn as convex hulls of each volume for speed and may over-state irregular model boundaries; the calculation uses the actual meshes.</li>
+    </ul>
+
+    <h3>Numerical and software</h3>
+    <ul>
+      <li>Resistances are integrated in 0.05 m slices and the toe is searched in 0.05 m steps. Round the reported length up to a practical construction value.</li>
+      <li>The first toe depth that satisfies both criteria is reported. Where a weaker layer underlies a strong one, a deeper toe may be needed even though the shallower one passes. Review the capacity profile.</li>
+      <li>Data is stored only in this browser (local storage). Clearing browser data deletes projects. Export projects to JSON for backup and record-keeping.</li>
+      <li>The software has been checked against hand calculations for simple cases (see the automated tests) but has not been independently verified. The user is responsible for checking results.</li>
+    </ul>
+  </article>
+</section>
+
+<!-- ======================================================================
+     PROJECT DETAILS
+     ====================================================================== -->
+<section class="tab-panel" id="tab-project" role="tabpanel" hidden>
+  <div class="page">
+    <form class="card" id="project-form" autocomplete="off" onsubmit="return false">
+      <h2>Project details</h2>
       <div class="grid g3">
-        <label>Permanent G (kN)<input name="loads.G" type="number" step="10" min="0"></label>
-        <label>Imposed Q (kN)<input name="loads.Q" type="number" step="10" min="0"></label>
-        <label title="Short-term combination factor, AS/NZS 1170.0 Table 4.1">ψ<sub>s</sub><input name="loads.psiS" type="number" step="0.1" min="0" max="1"></label>
+        <label class="span2">Project name<input name="name"></label>
+        <label>Job no.<input name="job"></label>
+        <label>Client<input name="client"></label>
+        <label class="span2">Site / location<input name="location"></label>
+        <label>Designer<input name="designer"></label>
+        <label>Checker<input name="checker"></label>
+        <label>Revision<input name="revision"></label>
+        <label>Date<input name="date" type="date"></label>
+        <label class="span3">Geotechnical report reference<input name="geoReport"></label>
+        <label class="span3">Notes / description<textarea name="notes" rows="4"></textarea></label>
       </div>
-      <p class="calc-line" id="loads-summary"></p>
-      <div class="grid g2">
-        <label>Settlement limit (mm)<input name="settlementLimit" type="number" step="1" min="0"></label>
-        <label>Settlement method
-          <select name="settlementMethod">
-            <option value="max">Max of Randolph &amp; Wroth / Fleming</option>
-            <option value="rw">Randolph &amp; Wroth (1978) elastic</option>
-            <option value="fleming">Fleming (1992) non-linear</option>
-          </select>
-        </label>
-      </div>
-    </section>
+    </form>
+    <div class="card">
+      <h2>Calculation sheets</h2>
+      <div class="table-wrap" id="sheet-summary"></div>
+      <button type="button" class="no-print" id="btn-new-sheet-2">+ New calculation sheet</button>
+    </div>
+  </div>
+</section>
 
-    <section class="card">
-      <h2>Geotechnical strength reduction factor φ<sub>g</sub> <span class="ref">AS 2159 Cl. 4.3</span></h2>
-      <table class="risk">
-        <thead><tr><th>Risk factor</th><th>w<sub>i</sub></th><th>Risk rating</th></tr></thead>
-        <tbody id="risk-body"></tbody>
-      </table>
-      <div class="grid g2">
-        <label>System redundancy
-          <select name="reduction.redundancy">
-            <option value="low">Low redundancy (e.g. isolated / single piles)</option>
-            <option value="high">High redundancy (e.g. large groups, piled rafts)</option>
-          </select>
-        </label>
-        <label>Load testing
-          <select name="reduction.testing.type">
-            <option value="none">None (K = 0)</option>
-            <option value="static">Static load testing</option>
-            <option value="dynamic">Dynamic load testing</option>
-          </select>
-        </label>
-        <label data-test>Piles tested p (%)<input name="reduction.testing.percent" type="number" step="0.5" min="0" max="100"></label>
-        <label data-test>Intrinsic test factor φ<sub>tf</sub><input name="reduction.testing.phiTf" type="number" step="0.05" min="0" max="1"></label>
-        <label>Override φ<sub>g</sub> (blank = calculated)<input name="reduction.override" type="number" step="0.01" min="0" max="1"></label>
-      </div>
-      <p class="calc-line" id="phi-summary"></p>
-    </section>
+<!-- ======================================================================
+     CALCULATIONS
+     ====================================================================== -->
+<section class="tab-panel" id="tab-calc" role="tabpanel" hidden>
+  <nav class="sheet-bar no-print" aria-label="Calculation sheets">
+    <div class="sheet-tabs" id="sheet-tabs" role="tablist"></div>
+    <div class="sheet-actions">
+      <button type="button" id="btn-new-sheet" title="New calculation sheet">+ New</button>
+      <button type="button" id="btn-dup-sheet" title="Duplicate this sheet">Duplicate</button>
+      <button type="button" id="btn-rename-sheet" title="Rename this sheet">Rename</button>
+      <button type="button" id="btn-delete-sheet" title="Delete this sheet">Delete</button>
+    </div>
+  </nav>
 
-    <section class="card">
-      <h2>Ground profile</h2>
-      <div class="grid g3">
-        <label>Groundwater depth (m)<input name="gwl" type="number" step="0.1" min="0"></label>
-      </div>
-      <div class="table-wrap">
-        <table class="layers">
-          <thead>
-            <tr>
-              <th>Description</th><th>Type</th><th>Bottom (m)</th><th>γ (kN/m³)</th>
-              <th>s<sub>u</sub> (kPa)</th><th>φ′ (°)</th><th>q<sub>u</sub> (MPa)</th>
-              <th>E (MPa)</th><th>ν</th>
-              <th title="User-defined ultimate unit shaft resistance">f<sub>s</sub> user (kPa)</th>
-              <th title="User-defined ultimate unit base resistance">q<sub>b</sub> user (kPa)</th>
-              <th title="Limiting ultimate shaft resistance (blank = none)">f<sub>s,max</sub> (kPa)</th>
-              <th title="Limiting ultimate base resistance (blank = none)">q<sub>b,max</sub> (kPa)</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="layer-body"></tbody>
-        </table>
-      </div>
-      <button type="button" id="btn-add-layer" class="no-print">+ Add layer</button>
-      <p class="hint">E is the drained (long-term) Young's modulus used for settlement. Layer tops are taken from the bottom of the layer above.</p>
-    </section>
+  <main class="layout">
+    <form id="inputs" class="inputs" autocomplete="off" onsubmit="return false">
 
-    <section class="card">
-      <details>
-        <summary><h2>Method parameters</h2></summary>
-        <div class="grid g3">
-          <label title="Kulhawy (1984): bored 0.67–1.0; driven small displacement 0.75–1.25; driven large displacement 1.0–2.0">Sand K/K<sub>0</sub><input name="method.KK0" type="number" step="0.05" min="0"></label>
-          <label title="Kulhawy (1984): rough cast-in-place concrete 1.0; precast concrete 0.8; steel 0.7">Sand δ/φ′<input name="method.deltaPhi" type="number" step="0.05" min="0" max="1"></label>
-          <label>Clay α method
-            <select name="method.alphaMethod">
-              <option value="fixed">Fixed α</option>
-              <option value="api">API RP2A (α from su/σ′v)</option>
+      <section class="card">
+        <h2>Pile</h2>
+        <div class="grid g2">
+          <label class="span2">Pile type
+            <select name="pile.type" id="pile-type"></select>
+          </label>
+          <label>Section
+            <select name="pile.shape">
+              <option value="circle">Circular</option>
+              <option value="square">Square</option>
             </select>
           </label>
-          <label>Clay α (fixed)<input name="method.alpha" type="number" step="0.05" min="0" max="1"></label>
-          <label>Clay base N<sub>c</sub><input name="method.Nc" type="number" step="0.5" min="0"></label>
-          <label title="fs = a·√qu (MPa). Rowe &amp; Armitage (1987): 0.45 smooth/regular sockets, 0.6 rough sockets">Rock shaft coefficient a<input name="method.rockShaftA" type="number" step="0.05" min="0"></label>
-          <label title="Fleming (1992) shaft flexibility factor, typically 0.001–0.002 (lower for stiff soils)">Fleming M<sub>s</sub><input name="method.Ms" type="number" step="0.0005" min="0"></label>
-          <label title="Fleming (1992) effective column length factor for shaft load transfer, typically 0.45–0.5">Fleming K<sub>e</sub><input name="method.Ke" type="number" step="0.05" min="0" max="1"></label>
+          <label>Diameter / width D (m)<input name="pile.D" type="number" step="0.05" min="0.1"></label>
+          <label>Pile modulus E<sub>p</sub> (MPa)<input name="pile.Ep" type="number" step="1000" min="1"></label>
+          <label data-show="steelTube">Tube wall t (m)<input name="pile.wall" type="number" step="0.001" min="0"></label>
+          <label>Cut-off (head) depth (m)<input name="pile.head" type="number" step="0.1" min="0"></label>
+          <label title="Shaft resistance ignored above this depth (e.g. fill, desiccated/reactive zone, casing)">Ignore shaft friction above (m)<input name="pile.ignoreTop" type="number" step="0.1" min="0"></label>
+          <label>Minimum length (m)<input name="pile.minLength" type="number" step="0.5" min="0"></label>
+          <label title="If the toe embedment into a layer is less than this, the weaker of that layer and the overlying layer is used for base resistance">Min. embedment in founding layer (m)<input name="pile.minEmbed" type="number" step="0.1" min="0"></label>
+          <label>Max. toe depth (m, blank = profile base)<input name="pile.maxToe" type="number" step="0.5" min="0"></label>
         </div>
-      </details>
+      </section>
+
+      <section class="card">
+        <h2>Loads per pile</h2>
+        <div class="grid g3">
+          <label>Permanent G (kN)<input name="loads.G" type="number" step="10" min="0"></label>
+          <label>Imposed Q (kN)<input name="loads.Q" type="number" step="10" min="0"></label>
+          <label title="Short-term combination factor, AS/NZS 1170.0 Table 4.1">ψ<sub>s</sub><input name="loads.psiS" type="number" step="0.1" min="0" max="1"></label>
+        </div>
+        <p class="calc-line" id="loads-summary"></p>
+        <div class="grid g2">
+          <label>Settlement limit (mm)<input name="settlementLimit" type="number" step="1" min="0"></label>
+          <label>Settlement method
+            <select name="settlementMethod">
+              <option value="max">Max of Randolph &amp; Wroth / Fleming</option>
+              <option value="rw">Randolph &amp; Wroth (1978) elastic</option>
+              <option value="fleming">Fleming (1992) non-linear</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Geotechnical strength reduction factor φ<sub>g</sub> <span class="ref">AS 2159 Cl. 4.3</span></h2>
+        <table class="risk">
+          <thead><tr><th>Risk factor</th><th>w<sub>i</sub></th><th>Risk rating</th></tr></thead>
+          <tbody id="risk-body"></tbody>
+        </table>
+        <div class="grid g2">
+          <label>System redundancy
+            <select name="reduction.redundancy">
+              <option value="low">Low redundancy (e.g. isolated / single piles)</option>
+              <option value="high">High redundancy (e.g. large groups, piled rafts)</option>
+            </select>
+          </label>
+          <label>Load testing
+            <select name="reduction.testing.type">
+              <option value="none">None (K = 0)</option>
+              <option value="static">Static load testing</option>
+              <option value="dynamic">Dynamic load testing</option>
+            </select>
+          </label>
+          <label data-test>Piles tested p (%)<input name="reduction.testing.percent" type="number" step="0.5" min="0" max="100"></label>
+          <label data-test>Intrinsic test factor φ<sub>tf</sub><input name="reduction.testing.phiTf" type="number" step="0.05" min="0" max="1"></label>
+          <label>Override φ<sub>g</sub> (blank = calculated)<input name="reduction.override" type="number" step="0.01" min="0" max="1"></label>
+        </div>
+        <p class="calc-line" id="phi-summary"></p>
+      </section>
+
+      <section class="card">
+        <h2>Ground profile</h2>
+        <div class="grid g3">
+          <label>Groundwater depth (m)<input name="gwl" type="number" step="0.1" min="0"></label>
+        </div>
+        <div class="table-wrap">
+          <table class="layers">
+            <thead>
+              <tr>
+                <th>Fill</th><th>Description</th><th>Type</th><th>Bottom (m)</th><th>γ (kN/m³)</th>
+                <th>s<sub>u</sub> (kPa)</th><th>φ′ (°)</th><th>q<sub>u</sub> (MPa)</th>
+                <th>E (MPa)</th><th>ν</th>
+                <th title="User-defined ultimate unit shaft resistance">f<sub>s</sub> user (kPa)</th>
+                <th title="User-defined ultimate unit base resistance">q<sub>b</sub> user (kPa)</th>
+                <th title="Limiting ultimate shaft resistance (blank = none)">f<sub>s,max</sub> (kPa)</th>
+                <th title="Limiting ultimate base resistance (blank = none)">q<sub>b,max</sub> (kPa)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="layer-body"></tbody>
+          </table>
+        </div>
+        <button type="button" id="btn-add-layer" class="no-print">+ Add layer</button>
+        <p class="hint">Fill sets the hatch pattern and colour shown in the profile graphic. E is the drained (long-term) Young's modulus used for settlement. Layer tops are taken from the bottom of the layer above.</p>
+      </section>
+
+      <section class="card">
+        <details>
+          <summary><h2>Method parameters</h2></summary>
+          <div class="grid g3">
+            <label title="Kulhawy (1984): bored 0.67–1.0; driven small displacement 0.75–1.25; driven large displacement 1.0–2.0">Sand K/K<sub>0</sub><input name="method.KK0" type="number" step="0.05" min="0"></label>
+            <label title="Kulhawy (1984): rough cast-in-place concrete 1.0; precast concrete 0.8; steel 0.7">Sand δ/φ′<input name="method.deltaPhi" type="number" step="0.05" min="0" max="1"></label>
+            <label>Clay α method
+              <select name="method.alphaMethod">
+                <option value="fixed">Fixed α</option>
+                <option value="api">API RP2A (α from su/σ′v)</option>
+              </select>
+            </label>
+            <label>Clay α (fixed)<input name="method.alpha" type="number" step="0.05" min="0" max="1"></label>
+            <label>Clay base N<sub>c</sub><input name="method.Nc" type="number" step="0.5" min="0"></label>
+            <label title="fs = a·√qu (MPa). Rowe &amp; Armitage (1987): 0.45 smooth/regular sockets, 0.6 rough sockets">Rock shaft coefficient a<input name="method.rockShaftA" type="number" step="0.05" min="0"></label>
+            <label title="Fleming (1992) shaft flexibility factor, typically 0.001–0.002 (lower for stiff soils)">Fleming M<sub>s</sub><input name="method.Ms" type="number" step="0.0005" min="0"></label>
+            <label title="Fleming (1992) effective column length factor for shaft load transfer, typically 0.45–0.5">Fleming K<sub>e</sub><input name="method.Ke" type="number" step="0.05" min="0" max="1"></label>
+          </div>
+          <button type="button" id="btn-method-defaults" class="no-print">Reset to pile-type defaults</button>
+        </details>
+      </section>
+    </form>
+
+    <section class="results" id="results" aria-live="polite">
+      <div class="print-only print-head" id="print-head"></div>
+      <div id="error" class="error" hidden></div>
+      <div class="kpis" id="kpis"></div>
+      <div id="warnings"></div>
+
+      <div class="card">
+        <h2>Pile and ground profile</h2>
+        <div id="chart-profile" class="chart"></div>
+      </div>
+      <div class="card">
+        <h2>Load–settlement at required length</h2>
+        <div id="chart-settlement" class="chart"></div>
+      </div>
+      <div class="card">
+        <h2>Design calculation at required length</h2>
+        <div id="detail"></div>
+      </div>
+      <div class="card">
+        <details>
+          <summary><h2>Capacity table (all toe depths)</h2></summary>
+          <div class="table-wrap" id="depth-table"></div>
+        </details>
+      </div>
+      <p class="hint">See <a href="#" data-goto="methods">Methods</a> and <a href="#" data-goto-tab="limits">Limitations</a> for the basis of design.</p>
     </section>
-  </form>
+  </main>
+</section>
 
-  <section class="results" id="results" aria-live="polite">
-    <div class="print-only print-head" id="print-head"></div>
-    <div id="error" class="error" hidden></div>
-    <div class="kpis" id="kpis"></div>
-    <div id="warnings"></div>
 
-    <div class="card">
-      <h2>Capacity vs toe depth</h2>
-      <div id="chart-capacity" class="chart"></div>
+<!-- ======================================================================
+     AUTOMATED CALCULATION
+     ====================================================================== -->
+<section class="tab-panel" id="tab-auto" role="tabpanel" hidden>
+  <main class="layout auto-layout">
+    <div class="inputs" id="auto-inputs">
+
+      <section class="card">
+        <h2>1. Ground model <span class="ref">DXF volumes (e.g. Leapfrog Geo export)</span></h2>
+        <div class="file-row">
+          <label class="btn file-btn">Import DXF volumes…<input type="file" id="auto-dxf" accept=".dxf" multiple hidden></label>
+          <span class="hint" id="auto-dxf-status"></span>
+        </div>
+        <p class="hint">Each DXF layer is read as one closed volume (3DFACE or polyface mesh). Export the volumes in model coordinates (easting, northing, RL in metres). Assign material properties to each volume below. Names that match a layer in the current calculation sheet copy its properties.</p>
+        <div class="table-wrap">
+          <table class="layers" id="vol-table">
+            <thead><tr>
+              <th title="Show in viewers">👁</th><th>Fill</th><th>Volume</th><th class="num">Triangles</th><th>Type</th><th>γ (kN/m³)</th>
+              <th>s<sub>u</sub> (kPa)</th><th>φ′ (°)</th><th>q<sub>u</sub> (MPa)</th><th>E (MPa)</th><th>ν</th>
+              <th>f<sub>s</sub> user</th><th>q<sub>b</sub> user</th><th>f<sub>s,max</sub></th><th>q<sub>b,max</sub></th><th></th>
+            </tr></thead>
+            <tbody id="vol-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>2. Groundwater</h2>
+        <div class="grid g2">
+          <label>Groundwater model
+            <select id="gw-mode">
+              <option value="none">None (dry)</option>
+              <option value="rl">Constant RL</option>
+              <option value="surface">3D surface (DXF mesh or CSV x,y,z points)</option>
+            </select>
+          </label>
+          <label data-gw="rl surface">Constant / fallback RL (m)<input id="gw-rl" type="number" step="0.1"></label>
+        </div>
+        <div class="file-row" data-gw="surface">
+          <label class="btn file-btn">Import groundwater surface…<input type="file" id="auto-gw" accept=".dxf,.csv,.txt" hidden></label>
+          <span class="hint" id="gw-status"></span>
+        </div>
+        <p class="hint" data-gw="surface">DXF: triangulated surface; the RL at each pile is found by a vertical intersection. CSV: x, y, z points interpolated by inverse distance weighting (8 nearest points). The fallback RL is used where the surface does not cover a pile.</p>
+      </section>
+
+      <section class="card">
+        <h2>3. Pile collars <span class="ref">x, y, z of the pile top / cut-off</span></h2>
+        <div class="file-row">
+          <label class="btn file-btn">Import CSV or shapefile…<input type="file" id="auto-collars" accept=".csv,.txt,.zip,.shp,.dbf" multiple hidden></label>
+          <span class="hint" id="collar-status"></span>
+        </div>
+        <div class="grid g3" id="collar-map" hidden>
+          <label>ID column<select data-map="id"></select></label>
+          <label>X / easting<select data-map="x"></select></label>
+          <label>Y / northing<select data-map="y"></select></label>
+          <label>Z / collar RL<select data-map="z"></select></label>
+          <label title="Optional per-pile permanent load; overrides the design case">G (kN), optional<select data-map="G"></select></label>
+          <label title="Optional per-pile imposed load; overrides the design case">Q (kN), optional<select data-map="Q"></select></label>
+        </div>
+        <p class="hint">Shapefile: a zipped shapefile, or the .shp with its .dbf. PointZ geometry gives the collar RL; for 2D points choose an attribute for Z.</p>
+      </section>
+
+      <section class="card">
+        <h2>4. Design cases <span class="ref">loads, φ<sub>g</sub> and performance criteria</span></h2>
+        <div class="table-wrap">
+          <table class="layers cases" id="case-table">
+            <thead><tr>
+              <th>Colour</th><th>Name</th><th>Pile type</th><th>Section</th><th>D (m)</th><th>E<sub>p</sub> (MPa)</th><th>Wall t (m)</th>
+              <th>G (kN)</th><th>Q (kN)</th><th>ψ<sub>s</sub></th><th>φ<sub>g</sub></th><th title="Copy the calculated φg (risk ratings and testing) from a calculation sheet">φ<sub>g</sub> from sheet</th>
+              <th>Settl. limit (mm)</th><th>Settl. method</th><th title="Shaft friction ignored for this depth below the collar">Ignore shaft (m)</th><th>Min L (m)</th><th>Max L (m)</th><th>Min embed (m)</th><th></th>
+            </tr></thead>
+            <tbody id="case-body"></tbody>
+          </table>
+        </div>
+        <div class="file-row">
+          <button type="button" id="btn-add-case">+ Add design case</button>
+          <label class="inline">Default case (outside zones) <select id="default-case"></select></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>5. Zones <span class="ref">areas that apply a design case</span></h2>
+        <div class="file-row">
+          <button type="button" id="btn-draw-zone">✎ Draw zone on plan</button>
+          <label class="btn file-btn">Import shapefile polygons…<input type="file" id="auto-zones" accept=".zip,.shp,.dbf" multiple hidden></label>
+          <label class="inline">Assign imported to <select id="zone-import-case"></select></label>
+        </div>
+        <p class="hint">Draw: click to add vertices on the 2D plan, double-click or press Enter to finish, Backspace to undo a vertex, Esc to cancel. Where zones overlap, the zone lower in this list takes precedence. On import, a polygon whose attribute value matches a case name gets that case.</p>
+        <div class="table-wrap">
+          <table class="data" id="zone-table">
+            <thead><tr><th>Zone</th><th>Design case</th><th class="num">Vertices</th><th class="num">Area (m²)</th><th class="num">Piles</th><th></th></tr></thead>
+            <tbody id="zone-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card run-card">
+        <h2>6. Calculate</h2>
+        <div class="file-row">
+          <button type="button" class="primary" id="btn-run-auto">Calculate all piles</button>
+          <button type="button" id="btn-cancel-auto" hidden>Cancel</button>
+          <span class="hint" id="run-status"></span>
+        </div>
+        <progress id="run-progress" max="1" value="0" hidden></progress>
+        <p class="hint">Method parameters (K/K<sub>0</sub>, δ/φ′, α, N<sub>c</sub>, rock coefficient, Fleming M<sub>s</sub>, K<sub>e</sub>) use the pile-type defaults described under <a href="#" data-goto="methods">Methods</a>. φ<sub>g</sub> is applied as entered for each case.</p>
+      </section>
     </div>
-    <div class="card">
-      <h2>Load–settlement at required length</h2>
-      <div id="chart-settlement" class="chart"></div>
-    </div>
-    <div class="card">
-      <h2>Design calculation at required length</h2>
-      <div id="detail"></div>
-    </div>
-    <div class="card">
-      <details>
-        <summary><h2>Capacity table (all toe depths)</h2></summary>
-        <div class="table-wrap" id="depth-table"></div>
-      </details>
-    </div>
-    <div class="card notes">
-      <h2>Basis of design &amp; limitations</h2>
-      <ul>
-        <li>Design geotechnical strength R*<sub>d,g</sub> = φ<sub>g</sub>·R<sub>d,ug</sub> ≥ E*<sub>d</sub> (AS 2159-2009 Cl. 4.3.1). φ<sub>g</sub> = φ<sub>gb</sub> + (φ<sub>tf</sub> − φ<sub>gb</sub>)K ≥ φ<sub>gb</sub>, with φ<sub>gb</sub> from the Average Risk Rating (Cl. 4.3.2) and K = 1.33p/(p+3.3) (static) or 1.13p/(p+3.3) (dynamic), K ≤ 1.</li>
-        <li>E*<sub>d</sub> = max(1.35G, 1.2G + 1.5Q); serviceability load G + ψ<sub>s</sub>Q (AS/NZS 1170.0). Serviceability checked per AS 2159 Cl. 4.4.</li>
-        <li>Ultimate resistance: clay α·s<sub>u</sub> and N<sub>c</sub>·s<sub>u</sub>; sand β-method (Kulhawy K/K<sub>0</sub>, δ/φ′) and Hansen/Vesic N<sub>q</sub>·d<sub>q</sub>·σ′<sub>v</sub>; rock a·√q<sub>u</sub> (Rowe &amp; Armitage 1987) and 4.83·q<sub>u</sub><sup>0.51</sup> (Zhang &amp; Einstein 1998). Apply limiting values appropriate to the site, pile type and installation method.</li>
-        <li>Settlement: Randolph &amp; Wroth (1978) elastic compressible-pile solution and Fleming (1992) hyperbolic method (both include elastic shortening).</li>
-        <li>Not included: structural strength (AS 2159 Section 5 / AS 3600 / AS 4100), negative skin friction / downdrag, group effects, lateral and uplift loading, cyclic loading, durability (AS 2159 Section 6) and pile self-weight. These must be checked separately.</li>
-        <li>This tool is a design aid. Results must be reviewed and verified by a qualified geotechnical engineer.</li>
-      </ul>
-    </div>
-  </section>
-</main>
+
+    <section class="results">
+      <div id="auto-stale" class="warn" hidden>Inputs have changed since the last calculation – click <b>Calculate all piles</b> to update the results.</div>
+      <div class="kpis" id="auto-kpis"></div>
+      <div class="card viewer-card">
+        <div class="viewer-bar">
+          <div class="seg" role="tablist" aria-label="Viewer mode">
+            <button type="button" data-view="plan" aria-selected="true">2D plan</button>
+            <button type="button" data-view="3d" aria-selected="false">3D view</button>
+          </div>
+          <label class="inline">Colour piles by
+            <select id="color-by">
+              <option value="status">Status</option>
+              <option value="length">Pile length</option>
+              <option value="toe">Toe RL</option>
+              <option value="case">Design case</option>
+            </select>
+          </label>
+          <button type="button" id="btn-fit">Fit to extents</button>
+        </div>
+        <div class="viewer-bar" id="v3d-bar" hidden>
+          <label class="inline">Vertical exaggeration <input type="range" id="v3d-ve" min="1" max="10" step="0.5" value="1"><output id="v3d-ve-out">1×</output></label>
+          <label class="inline">Volume opacity <input type="range" id="v3d-opacity" min="0" max="1" step="0.05" value="0.3"></label>
+          <label class="inline" title="1× = true diameter">Pile width <input type="range" id="v3d-pile" min="1" max="20" step="1" value="1"><output id="v3d-pile-out">1×</output></label>
+          <label class="inline"><input type="checkbox" id="v3d-vol" checked> Volumes</label>
+          <label class="inline"><input type="checkbox" id="v3d-gw" checked> Groundwater</label>
+          <label class="inline"><input type="checkbox" id="v3d-zones" checked> Zones</label>
+        </div>
+        <div class="viewer" id="viewer">
+          <svg id="plan" class="plan" role="img" aria-label="Plan of model extents, zones and pile locations"></svg>
+          <div id="view3d" class="view3d" hidden></div>
+          <div id="draw-hint" class="draw-hint" hidden>Drawing zone – click to add points, double-click or Enter to finish, Esc to cancel</div>
+          <div id="pile-info" class="pile-info" hidden></div>
+        </div>
+        <div class="legend" id="auto-legend"></div>
+      </div>
+      <div class="card">
+        <div class="viewer-bar">
+          <h2 style="margin:0">Summary</h2>
+          <label class="inline">Show <select id="result-filter">
+            <option value="all">All piles</option><option value="ok">Designed</option><option value="fail">Not designed</option>
+          </select></label>
+          <button type="button" id="btn-export-results">Export results CSV</button>
+        </div>
+        <div class="table-wrap summary-wrap" id="auto-table"></div>
+      </div>
+    </section>
+  </main>
+</section>
+
+<footer class="app-footer no-print">Design aid only – results must be verified by a qualified geotechnical engineer. Data is stored in this browser; export projects to back them up.</footer>
 
 <script src="js/calc.js"></script>
+<script src="js/content.js"></script>
 <script src="js/app.js"></script>
+<script src="vendor/three/three.min.js"></script>
+<script src="vendor/three/OrbitControls.js"></script>
+<script src="js/geo-io.js"></script>
+<script src="js/geo-model.js"></script>
+<script src="js/auto-ui.js"></script>
 </body>
 </html>
